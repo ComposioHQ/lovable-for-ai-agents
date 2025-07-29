@@ -79,7 +79,7 @@ export async function GET(req: NextRequest) {
 
     // Generate connection URL for the specific app
     // For now, return a placeholder URL - this will be enhanced with proper Composio integration
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+    const baseUrl = process.env.API_BASE_URL;
     const connectionUrl = `https://app.composio.dev/apps/${app}/connect?redirect_uri=${encodeURIComponent(baseUrl + '/connections/callback')}`;
 
     return NextResponse.json({
