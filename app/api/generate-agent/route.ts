@@ -115,35 +115,56 @@ Generate only the system prompt text.`,
 
     // Step 4: Generate frontend code with working JavaScript
     const frontendPrompt = `
-Create a complete HTML page for an AI agent interface based on this idea: "${agentIdea}"
+Create a complete, single-file HTML page for a modern AI chat interface based on this idea: "${agentIdea}"
 
-Requirements:
-1. Create a modern, clean HTML page with inline CSS and JavaScript
-2. Must include these input fields:
-   - LLM API Key (password input with id="llmApiKey")
-   - Composio API Key (password input with id="composioApiKey") 
-   - Prompt (textarea with id="prompt" and placeholder specific to the agent's purpose)
-3. Include a "Run Agent" button that actually calls the API
-4. Include a response area (div with id="response") to display agent output
-5. Add JavaScript that makes real API calls to /api/execute-generated-agent
-6. Handle loading states, errors, and success responses
-7. Use these discovered tools: ${discoveredTools.join(', ')}
-8. Use this system prompt: "${systemPromptResult.text.replace(/"/g, '\\"')}"
-9. Make it responsive and user-friendly with modern CSS
-10. Add proper form validation
-11. Add a header with the agent's name: "${agentIdea}"
+**Non-Negotiable Requirements:**
 
-The JavaScript should:
-- Collect form values (llmApiKey, composioApiKey, prompt)
-- Make POST request to /api/execute-generated-agent
-- Pass discoveredTools: ${JSON.stringify(discoveredTools)}
-- Pass systemPrompt: "${systemPromptResult.text.replace(/"/g, '\\"')}"
-- Show loading state while request is in progress
-- Display response or error in the response area
-- Handle connection required errors with helpful messages
-- Show specific error types (connection, tool errors, etc.) with appropriate styling
+1.  **HTML Structure:**
+    *   A main container with a class of \`chat-container\`.
+    *   A header \`<div class="chat-header">\` displaying the agent's name: "${agentIdea}".
+    *   A message container \`<div class="chat-messages" id="chatMessages">\`.
+    *   An initial message from the assistant welcoming the user.
+    *   A message input form container \`<div class="chat-input-container">\`.
+    *   The form must contain a \`<textarea id="chatInput">\` and a send \`<button id="sendButton">\`.
 
-Generate only the complete HTML code with inline CSS and JavaScript. No explanations.
+2.  **Styling (Inline CSS):**
+    *   Create a modern, clean, responsive chat interface. Use a dark theme.
+    *   The styling must be fully contained within a \`<style>\` tag in the \`<head>\`. Do not use external stylesheets.
+    *   Include styles for user messages, agent messages, loading indicators, and error messages.
+    *   The textarea should auto-resize based on content.
+
+3.  **JavaScript Logic (Inline Script):**
+    *   All JavaScript must be within a single \`<script>\` tag at the end of the \`<body>\`.
+    *   **Crucially, use these exact placeholders for API keys and user ID, as they will be replaced by the server:**
+        \`\`\`javascript
+        const LLM_API_KEY = "__LLM_API_KEY__";
+        const COMPOSIO_API_KEY = "__COMPOSIO_API_KEY__";
+        const USER_ID = "__USER_ID__";
+        \`\`\`
+    *   The script must get the following data, which is already embedded in this prompt:
+        *   \`const DISCOVERED_TOOLS = ${JSON.stringify(discoveredTools)};\`
+        *   \`const SYSTEM_PROMPT = ${JSON.stringify(systemPromptResult.text.replace(/"/g, '\\"'))};\`
+    *   **The send button's \`onclick\` event must trigger a \`sendMessage\` function with the following behavior:**
+        1.  It must read the text from the \`chatInput\` textarea.
+        2.  It must display the user's message on the screen.
+        3.  It must show a loading indicator while waiting for the response.
+        4.  Inside the \`sendMessage\` function, it must define the base URL for API calls: \`const API_BASE_URL = window.location.origin;\`.
+        5.  **It must send a POST request to \`\${API_BASE_URL}/api/execute-generated-agent\`**.
+        6.  The request body **MUST** be a JSON object with this exact structure:
+            \`\`\`json
+            {
+              "llmApiKey": LLM_API_KEY,
+              "composioApiKey": COMPOSIO_API_KEY,
+              "prompt": "The user's message",
+              "discoveredTools": DISCOVERED_TOOLS,
+              "systemPrompt": SYSTEM_PROMPT,
+              "userId": USER_ID
+            }
+            \`\`\`
+        7.  It must handle the JSON response from the API, displaying either the agent's \`response\` text or the \`error\` and \`details\` if the call fails.
+        8.  It must remove the loading indicator after the response is received.
+
+Generate only the complete, single HTML file. Do not wrap it in markdown or provide any explanation.
     `;
 
     const frontendResult = await generateText({
