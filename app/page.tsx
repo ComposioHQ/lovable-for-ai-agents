@@ -25,6 +25,19 @@ interface ChatMessage {
   data?: any;
 }
 
+interface ToolkitConnectionStatus {
+  connected: boolean;
+  status: 'connected' | 'connecting' | 'not_connected';
+  authScheme?: string;
+  isComposioManaged?: boolean;
+  isOAuth2?: boolean;
+  isApiKey?: boolean;
+  managedSchemes?: string[];
+  toolkitSlug?: string;
+  connectionId?: string;
+  apiKey?: string;
+}
+
 export default function Home() {
   const [agentIdea, setAgentIdea] = useState('');
   const [userId, setUserId] = useState<string>('');
@@ -39,8 +52,18 @@ export default function Home() {
   const [generatedCode, setGeneratedCode] = useState<GeneratedCode | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [toolkitInfos, setToolkitInfos] = useState<Record<string, any>>({});
-  const [connectionStatuses, setConnectionStatuses] = useState<Record<string, any>>({});
+  const [connectionStatuses, setConnectionStatuses] = useState<Record<string, ToolkitConnectionStatus>>({});
   const [isCheckingConnections, setIsCheckingConnections] = useState(false);
+  const [credentialCollection, setCredentialCollection] = useState<{
+    isCollecting: boolean;
+    toolkitSlug: string;
+    authType: 'oauth2' | 'api_key';
+    credentials: {
+      clientId?: string;
+      clientSecret?: string;
+      apiKey?: string;
+    };
+  } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
@@ -1048,7 +1071,7 @@ The agent is now ready for testing on the right side!`,
       const toolkitResults = await Promise.all(toolkitPromises);
       
       const newToolkitInfos: Record<string, any> = {};
-      const newConnectionStatuses: Record<string, any> = {};
+      const newConnectionStatuses: Record<string, ToolkitConnectionStatus> = {};
       const connectionItems: string[] = [];
       
       toolkitResults.forEach(({ toolkitSlug, toolkit }) => {
@@ -1105,116 +1128,167 @@ Connect these services to enable your agent's full functionality:`,
     }
   };
 
-  const connectToolkit = async (toolkitSlug: string) => {
+  const handleCredentialSubmit = async () => {
+    if (!credentialCollection) return;
+    
+    const { toolkitSlug, authType, credentials } = credentialCollection;
     const toolkit = toolkitInfos[toolkitSlug];
-    const status = connectionStatuses[toolkitSlug];
-    if (!toolkit || !status) return;
-
+    
     try {
       const apiKey = process.env.NEXT_PUBLIC_COMPOSIO_API_KEY;
       if (!apiKey) {
         alert('Composio API key not configured. Please set NEXT_PUBLIC_COMPOSIO_API_KEY in your environment.');
         return;
       }
-      
-      // Reload the iframe to update with the new Composio API key
-      if (iframeRef.current) {
-        reloadIframe();
-      }
 
+      addMessage({
+        type: 'system',
+        content: `Connecting ${toolkit?.name || toolkitSlug}...`
+      });
+
+      // Clear the credential collection UI
+      setCredentialCollection(null);
+      
+      const response = await fetch('/api/create-connection', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          composioApiKey: apiKey,
+          toolkitSlug,
+          authType,
+          credentials,
+          userId
+        })
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        if (authType === 'oauth2' && data.redirectUrl) {
+          // For OAuth2, open redirect URL and wait for connection
+          setConnectionStatuses(prev => ({
+            ...prev,
+            [toolkitSlug]: { ...prev[toolkitSlug], status: 'connecting' }
+          }));
+          
+          window.open(data.redirectUrl, '_blank');
+          if (data.connectionId) {
+            waitForOAuthConnection(apiKey, data.connectionId, toolkitSlug);
+          }
+        } else {
+          // For API key, connection should be immediate
+          setConnectionStatuses(prev => ({
+            ...prev,
+            [toolkitSlug]: { ...prev[toolkitSlug], connected: true, status: 'connected' }
+          }));
+          
+          addMessage({
+            type: 'system',
+            content: `✅ ${toolkit?.name || toolkitSlug} connected successfully!`
+          });
+        }
+      } else {
+        throw new Error(data.error || 'Connection failed');
+      }
+    } catch (error: any) {
+      addMessage({
+        type: 'system',
+        content: `❌ Failed to connect ${toolkit?.name || toolkitSlug}: ${error.message}`
+      });
+    }
+  };
+
+  const connectToolkit = async (toolkitSlug: string) => {
+    const toolkit = toolkitInfos[toolkitSlug];
+    const status = connectionStatuses[toolkitSlug];
+    if (!toolkit || !status) return;
+
+    // Check if Composio API key is configured
+    const composioApiKey = process.env.NEXT_PUBLIC_COMPOSIO_API_KEY;
+    if (!composioApiKey) {
+      alert('Composio API key not configured. Please set NEXT_PUBLIC_COMPOSIO_API_KEY in your environment.');
+      return;
+    }
+    
+    // Reload the iframe to update with the new Composio API key
+    if (iframeRef.current) {
+      reloadIframe();
+    }
+
+    try {
       if (status.isComposioManaged && status.isOAuth2) {
+        // Composio-managed OAuth2 - direct redirect
         addMessage({
           type: 'system',
           content: `Initiating OAuth connection for ${toolkit.name}... Please authorize in the popup window.`
         });
 
-        try {
-          const response = await fetch('/api/create-connection', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              composioApiKey: apiKey,
-              toolkitSlug,
-              authType: 'oauth2',
-              userId
-            })
-          });
+        const response = await fetch('/api/create-connection', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            composioApiKey,
+            toolkitSlug,
+            authType: 'oauth2',
+            userId
+          })
+        });
 
-          if (response.ok) {
-            const data = await response.json();
-            if (data.redirectUrl && data.connectionId) {
-              setConnectionStatuses(prev => ({
-                ...prev,
-                [toolkitSlug]: { ...prev[toolkitSlug], status: 'connecting' }
-              }));
-              
-              window.open(data.redirectUrl, '_blank');
-              waitForOAuthConnection(apiKey, data.connectionId, toolkitSlug);
-            }
+        if (response.ok) {
+          const data = await response.json();
+          if (data.redirectUrl && data.connectionId) {
+            setConnectionStatuses(prev => ({
+              ...prev,
+              [toolkitSlug]: { ...prev[toolkitSlug], status: 'connecting' }
+            }));
+            
+            window.open(data.redirectUrl, '_blank');
+            waitForOAuthConnection(composioApiKey, data.connectionId, toolkitSlug);
           }
-        } catch (error) {
-          addMessage({
-            type: 'system',
-            content: `❌ Failed to initiate OAuth connection for ${toolkit.name}. Please try again.`
-          });
+        } else {
+          throw new Error('Failed to initiate OAuth connection');
         }
         
       } else if (status.isComposioManaged && status.isApiKey) {
-        const apiKey = (window as any).prompt(`Enter your ${toolkit.name} API Key:`);
-        if (!apiKey) return;
-        
-        try {
-          const response = await fetch('/api/create-connection', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              composioApiKey: apiKey,
-              toolkitSlug,
-              authType: 'api_key',
-              credentials: { apiKey },
-              userId
-            })
-          });
-
-          if (response.ok) {
-            setConnectionStatuses(prev => ({
-              ...prev,
-              [toolkitSlug]: { ...prev[toolkitSlug], connected: true, status: 'connected', apiKey }
-            }));
-            
-            addMessage({
-              type: 'system',
-              content: `✅ ${toolkit.name} connected successfully!`
-            });
-          } else {
-            throw new Error('Connection failed');
-          }
-        } catch (error) {
-          addMessage({
-            type: 'system',
-            content: `❌ Failed to connect ${toolkit.name} with API key. Please check your credentials.`
-          });
-        }
-        
-      } else if (!status.isComposioManaged) {
-        addMessage({
-          type: 'system',
-          content: `${toolkit.name} requires custom app setup in the Composio dashboard. Opening configuration page...`
+        // Composio-managed API key - show input form
+        setCredentialCollection({
+          isCollecting: true,
+          toolkitSlug,
+          authType: 'api_key',
+          credentials: {}
         });
-        window.open(`https://app.composio.dev/apps/${toolkitSlug}`, '_blank');
+        
+      } else if (!status.isComposioManaged && status.isOAuth2) {
+        // Non-Composio managed OAuth2 - collect client ID and secret
+        setCredentialCollection({
+          isCollecting: true,
+          toolkitSlug,
+          authType: 'oauth2',
+          credentials: {}
+        });
+        
+      } else if (!status.isComposioManaged && status.isApiKey) {
+        // Non-Composio managed API key - show input form
+        setCredentialCollection({
+          isCollecting: true,
+          toolkitSlug,
+          authType: 'api_key',
+          credentials: {}
+        });
         
       } else {
+        // Unsupported authentication scheme
         addMessage({
           type: 'system',
           content: `${toolkit.name} authentication (${status.authScheme}) is not yet supported in this interface.`
         });
       }
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error connecting toolkit:', error);
       addMessage({
         type: 'system',
-        content: `❌ Failed to connect ${toolkit.name}. Please try again.`
+        content: `❌ Failed to connect ${toolkit.name}: ${error.message}`
       });
     }
   };
@@ -1350,7 +1424,7 @@ Connect these services to enable your agent's full functionality:`,
                   {/* Connection Status Buttons */}
                   {message.type === 'connection-status' && message.data?.toolkits && (
                     <div className="mt-5 space-y-3">
-                      {Object.entries(message.data.toolkits).map(([toolkitSlug, status]: [string, any]) => (
+                      {Object.entries(message.data.toolkits as Record<string, ToolkitConnectionStatus>).map(([toolkitSlug, status]) => (
                         <div key={toolkitSlug} className="flex items-center justify-between bg-gray-800/40 rounded-xl p-4 border border-gray-700/30">
                           <div className="flex-1">
                             <div className="font-semibold text-white text-sm">
@@ -1409,6 +1483,82 @@ Connect these services to enable your agent's full functionality:`,
             <div ref={messagesEndRef} />
           </div>
         </div>
+
+        {/* Credential Collection UI */}
+        {credentialCollection && (
+          <div className="flex-shrink-0 p-6 border-t border-gray-800/50 bg-gray-900/40 backdrop-blur-sm">
+            <div className="bg-gray-800/60 rounded-xl p-4 border border-gray-700/30">
+              <h3 className="text-white font-semibold mb-4">
+                Connect {toolkitInfos[credentialCollection.toolkitSlug]?.name || credentialCollection.toolkitSlug}
+              </h3>
+              
+              {credentialCollection.authType === 'oauth2' ? (
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Client ID</label>
+                    <input
+                      type="text"
+                      value={credentialCollection.credentials.clientId || ''}
+                      onChange={(e) => setCredentialCollection(prev => prev ? {
+                        ...prev,
+                        credentials: { ...prev.credentials, clientId: e.target.value }
+                      } : null)}
+                      placeholder="Enter your client ID"
+                      className="w-full bg-gray-900/50 border border-gray-700/50 rounded-lg px-3 py-2 text-white placeholder-gray-400 focus:outline-none focus:border-violet-500/50"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Client Secret</label>
+                    <input
+                      type="password"
+                      value={credentialCollection.credentials.clientSecret || ''}
+                      onChange={(e) => setCredentialCollection(prev => prev ? {
+                        ...prev,
+                        credentials: { ...prev.credentials, clientSecret: e.target.value }
+                      } : null)}
+                      placeholder="Enter your client secret"
+                      className="w-full bg-gray-900/50 border border-gray-700/50 rounded-lg px-3 py-2 text-white placeholder-gray-400 focus:outline-none focus:border-violet-500/50"
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">API Key</label>
+                  <input
+                    type="password"
+                    value={credentialCollection.credentials.apiKey || ''}
+                    onChange={(e) => setCredentialCollection(prev => prev ? {
+                      ...prev,
+                      credentials: { ...prev.credentials, apiKey: e.target.value }
+                    } : null)}
+                    placeholder="Enter your API key"
+                    className="w-full bg-gray-900/50 border border-gray-700/50 rounded-lg px-3 py-2 text-white placeholder-gray-400 focus:outline-none focus:border-violet-500/50"
+                  />
+                </div>
+              )}
+              
+              <div className="flex gap-2 mt-4">
+                <button
+                  onClick={() => handleCredentialSubmit()}
+                  disabled={credentialCollection.authType === 'oauth2' ? 
+                    !credentialCollection.credentials.clientId || !credentialCollection.credentials.clientSecret :
+                    !credentialCollection.credentials.apiKey
+                  }
+                  className="bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                >
+                  Connect
+                </button>
+                <button
+                  onClick={() => setCredentialCollection(null)}
+                  className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Input - Fixed at Bottom */}
         <div className="flex-shrink-0 p-6 border-t border-gray-800/50 bg-gray-900/20 backdrop-blur-sm">
