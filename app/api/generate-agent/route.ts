@@ -13,8 +13,13 @@ export async function POST(req: NextRequest) {
     }
 
     // Initialize Composio for tool discovery
+    const composioApiKey = process.env.COMPOSIO_API_KEY;
+    if (!composioApiKey) {
+      return NextResponse.json({ error: 'Composio API key not configured' }, { status: 500 });
+    }
+    
     const composio = new Composio({
-      apiKey: process.env.COMPOSIO_API_KEY,
+      apiKey: composioApiKey,
       provider: new VercelProvider()
     });
 
@@ -34,6 +39,12 @@ Examples:
 
 Generate only the use case description with a tool name, no explanations.
     `;
+
+    // Check for OpenAI API key
+    const openaiApiKey = process.env.OPENAI_API_KEY;
+    if (!openaiApiKey) {
+      return NextResponse.json({ error: 'OpenAI API key not configured' }, { status: 500 });
+    }
 
     const useCaseResult = await generateText({
       model: openai('gpt-4.1'),

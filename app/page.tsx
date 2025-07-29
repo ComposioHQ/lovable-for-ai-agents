@@ -57,6 +57,7 @@ export default function Home() {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https: data: blob:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https:; connect-src 'self' https:; img-src 'self' data: https:;">
     <title>AI Assistant</title>
     <style>
         * {
@@ -511,6 +512,32 @@ export default function Home() {
     </div>
 
     <script>
+        // Error handling for localStorage access issues
+        window.addEventListener('error', function(e) {
+            if (e.message && e.message.includes('localStorage')) {
+                console.warn('localStorage access blocked - this is expected in iframe contexts');
+                e.preventDefault();
+                return true;
+            }
+        });
+        
+        // Override localStorage to prevent errors from third-party scripts
+        if (typeof Storage !== 'undefined') {
+            try {
+                localStorage.getItem('test');
+            } catch (e) {
+                console.warn('localStorage not available, creating fallback');
+                window.localStorage = {
+                    getItem: () => null,
+                    setItem: () => {},
+                    removeItem: () => {},
+                    clear: () => {},
+                    key: () => null,
+                    length: 0
+                };
+            }
+        }
+
         // API Configuration
         const LLM_API_KEY = '${llmApiKey}';
         const COMPOSIO_API_KEY = '${composioApiKey}';
@@ -839,18 +866,18 @@ export default function Home() {
             const newUrl = URL.createObjectURL(newBlob);
             iframeRef.current.src = newUrl;
           }
+        } else if (currentSrc.includes('/api/preview')) {
+          // For API preview URLs, just reload
+          iframeRef.current.src = currentSrc + '&t=' + Date.now();
         } else {
           // For other URLs, just reload
           iframeRef.current.src = currentSrc;
         }
       } catch (error) {
         console.error('Error reloading iframe:', error);
-        // Fallback: just recreate the iframe completely
+        // Fallback: reset to default preview
         if (iframeRef.current) {
-          const iframe = iframeRef.current;
-          const newIframe = iframe.cloneNode(true) as HTMLIFrameElement;
-          iframe.parentNode?.replaceChild(newIframe, iframe);
-          iframeRef.current = newIframe;
+          iframeRef.current.src = '/api/preview?type=default&t=' + Date.now();
         }
       }
     }
@@ -1441,7 +1468,7 @@ Connect these services to enable your agent's full functionality:`,
             <iframe
               ref={iframeRef}
               className="flex-1 w-full bg-white shadow-2xl rounded-lg border border-gray-700/50"
-              src="data:text/html;charset=utf-8,%3C!DOCTYPE%20html%3E%3Chtml%3E%3Chead%3E%3Cmeta%20charset%3D%22UTF-8%22%3E%3Cmeta%20name%3D%22viewport%22%20content%3D%22width%3Ddevice-width%2C%20initial-scale%3D1.0%22%3E%3Ctitle%3EAI%20Agent%20Preview%3C%2Ftitle%3E%3Cstyle%3Ebody%7Bdisplay%3Aflex%3Balign-items%3Acenter%3Bjustify-content%3Acenter%3Bheight%3A100vh%3Bmargin%3A0%3Bbackground%3Alinear-gradient(135deg%2C%20%23667eea%200%25%2C%20%23764ba2%20100%25)%3Bfont-family%3A-apple-system%2CBlinkMacSystemFont%2C%27Segoe%20UI%27%2CRoboto%2Csans-serif%3Bcolor%3Awhite%3B%7D.container%7Btext-align%3Acenter%3Bmax-width%3A500px%3Bpadding%3A40px%3B%7D.icon%7Bwidth%3A80px%3Bheight%3A80px%3Bbackground%3Argba(255%2C255%2C255%2C0.2)%3Bborder-radius%3A50%25%3Bmargin%3A0%20auto%2024px%3Bdisplay%3Aflex%3Balign-items%3Acenter%3Bjustify-content%3Acenter%3Bbox-sizing%3Aborder-box%3B%7Dh2%7Bfont-size%3A28px%3Bfont-weight%3A600%3Bmargin%3A0%200%2012px%200%3Bletter-spacing%3A-0.5px%3B%7Dp%7Bfont-size%3A16px%3Bopacity%3A0.9%3Bline-height%3A1.6%3Bmargin%3A0%3B%7D%3C%2Fstyle%3E%3C%2Fhead%3E%3Cbody%3E%3Cdiv%20class%3D%22container%22%3E%3Cdiv%20class%3D%22icon%22%3E%3Csvg%20width%3D%2240%22%20height%3D%2240%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22currentColor%22%20stroke-width%3D%222%22%3E%3Cpath%20d%3D%22M9.663%2017h4.673M12%203v1m6.364%201.636l-.707.707M21%2012h-1M4%2012H3m3.343-5.657l-.707-.707m2.828%209.9a5%205%200%20117.072%200l-.548.547A3.374%203.374%200%200014%2018.469V19a2%202%200%2011-4%200v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z%22%2F%3E%3C%2Fsvg%3E%3C%2Fdiv%3E%3Ch2%3EAI%20Agent%20Preview%3C%2Fh2%3E%3Cp%3EYour%20generated%20agent%20interface%20will%20appear%20here%20once%20you%20create%20an%20agent.%20The%20preview%20will%20show%20the%20complete%20frontend%20with%20all%20interactive%20elements.%3C%2Fp%3E%3C%2Fdiv%3E%3C%2Fbody%3E%3C%2Fhtml%3E"
+              src="/api/preview?type=default"
               title="AI Agent Preview"
             />
             
