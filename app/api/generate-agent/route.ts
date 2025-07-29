@@ -28,16 +28,19 @@ export async function POST(req: NextRequest) {
 Based on this agent idea: "${agentIdea}"
 
 Generate a concise, specific use case description that captures the core functionality and required actions. 
-Focus on what the agent needs to DO, not what it is.
+Focus on what the agent needs to DO, not what it is. Use action verbs and be specific about the domain.
 
 Examples:
-- Agent idea: "Customer support agent that handles refunds and tracks orders on Hubspot"
-  Use case: "process refunds, track order status, handle customer inquiries on Slack"
+- Agent idea: "Customer support agent that handles refunds and tracks orders"
+  Use case: "customer support automation and order management"
 
 - Agent idea: "Social media manager that schedules posts on twitter"  
-  Use case: "schedule social media posts, analyze engagement metrics"
+  Use case: "social media content scheduling and analytics"
 
-Generate only the use case description with a tool name, no explanations.
+- Agent idea: "Email marketing assistant for campaigns"
+  Use case: "email campaign management and automation"
+
+Generate only the use case description (2-4 words), no explanations.
     `;
 
     // Check for OpenAI API key
@@ -94,16 +97,20 @@ Return only a comma-separated list of 3-5 most relevant tool names that are from
       model: openai('gpt-4o-mini'),
       prompt: `Create a focused system prompt for an AI agent with this idea: "${agentIdea}"
 
-The agent will have access to these tools: ${discoveredTools.join(', ')}
+The agent will have access to these Composio tools: ${discoveredTools.join(', ')}
 
 Requirements:
 - Be specific about the agent's role and capabilities
-- Mention the available tools contextually
-- Keep it concise but comprehensive
+- Explain what the agent can do with the available tools
+- Mention specific use cases and workflows
+- Keep it concise but comprehensive (2-3 sentences)
 - Focus on helping the user effectively
+- Don't mention technical details about the tools, focus on what the user can accomplish
+
+Example format: "You are a [role] agent that helps users [main purpose]. You can [specific capabilities using tools] and [other capabilities]. Ask me what you'd like to accomplish and I'll help you get it done."
 
 Generate only the system prompt text.`,
-      maxTokens: 300,
+      maxTokens: 400,
     });
 
     // Step 4: Generate frontend code with working JavaScript

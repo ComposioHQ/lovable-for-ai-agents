@@ -58,7 +58,7 @@ export default function Home() {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https: data: blob:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https:; connect-src 'self' https:; img-src 'self' data: https:;">
-    <title>AI Assistant</title>
+    <title>${code.useCase ? code.useCase.charAt(0).toUpperCase() + code.useCase.slice(1) + ' Agent' : 'AI Assistant'}</title>
     <style>
         * {
             margin: 0;
@@ -476,8 +476,8 @@ export default function Home() {
             <div class="header-content">
                 <div class="ai-avatar">AI</div>
                 <div class="header-info">
-                    <h1>AI Assistant</h1>
-                    <p>Ready to help</p>
+                    <h1>${code.useCase ? code.useCase.charAt(0).toUpperCase() + code.useCase.slice(1) + ' Agent' : 'AI Assistant'}</h1>
+                    <p>${code.discoveredTools && code.discoveredTools.length > 0 ? `Using ${code.discoveredTools.length} tools` : 'Ready to help'}</p>
                 </div>
                 <div class="status-indicator"></div>
             </div>
@@ -486,7 +486,7 @@ export default function Home() {
         <div class="chat-messages" id="chatMessages">
             <div class="message agent-message">
                 <div class="message-content">
-                    Hello! I'm your AI assistant. I can help you with Google Sheets data analysis, retrieval, and much more. What would you like to explore today?
+                    Hello! I'm your AI assistant. ${code.useCase ? `I can help you with ${code.useCase}.` : 'I can help you with various tasks using the available tools.'} What would you like to explore today?
                 </div>
             </div>
         </div>
@@ -497,7 +497,7 @@ export default function Home() {
                     <textarea 
                         class="chat-input" 
                         id="chatInput" 
-                        placeholder="Message AI Assistant..." 
+                        placeholder="${code.useCase ? `Ask about ${code.useCase}...` : 'Message AI Assistant...'}" 
                         rows="1"
                     ></textarea>
                 </div>
@@ -543,8 +543,8 @@ export default function Home() {
         const COMPOSIO_API_KEY = '${composioApiKey}';
         const USER_ID = '${userId}';
         const API_BASE_URL = window.location.origin || '';
-        const DISCOVERED_TOOLS = ["GOOGLESHEETS_BATCH_GET", "GOOGLESHEETS_AGGREGATE_COLUMN_DATA", "GOOGLESHEETS_CREATE_CHART"];
-        const SYSTEM_PROMPT = "You are an AI agent specialized in retrieving and analyzing data from Google Sheets...";
+        const DISCOVERED_TOOLS = ${JSON.stringify(code.discoveredTools || [])};
+        const SYSTEM_PROMPT = ${JSON.stringify((code.systemPrompt || "You are a helpful AI assistant.").replace(/\n/g, ' ').replace(/\s+/g, ' ').trim())};
         
         // DOM Elements
         const chatInput = document.getElementById('chatInput');
@@ -579,6 +579,9 @@ export default function Home() {
         // Initialize API check
         function initializeChat() {
             try {
+                console.log('Agent initialized with tools:', DISCOVERED_TOOLS);
+                console.log('System prompt:', SYSTEM_PROMPT);
+                
                 if (!COMPOSIO_API_KEY || COMPOSIO_API_KEY === 'YOUR_COMPOSIO_API_KEY_HERE' || COMPOSIO_API_KEY === '') {
                     // Don't disable input, just show warning
                     addMessage('⚠️ Composio API key not configured. Please set your API key in the configuration.', false, true);
@@ -588,6 +591,11 @@ export default function Home() {
                 if (!LLM_API_KEY || LLM_API_KEY === 'YOUR_OPENAI_API_KEY_HERE' || LLM_API_KEY === '') {
                     addMessage('⚠️ OpenAI API key not configured. Please set your API key in the configuration.', false, true);
                     return;
+                }
+
+                // Show available tools
+                if (DISCOVERED_TOOLS && DISCOVERED_TOOLS.length > 0) {
+                    addMessage('🛠️ Available tools: ' + DISCOVERED_TOOLS.join(', '), false, false);
                 }
 
                 // Test API connectivity
