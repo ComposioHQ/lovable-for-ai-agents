@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Lovable AI Agents",
-  description: "Build AI Agents with Visual Frontend Builder - Generate custom AI agents with GrapesJS frontend and Vercel AI SDK backend",
+  description: "Build AI Agents with Dynamic Frontend Generation - Generate custom AI agents with automatic frontend and Vercel AI SDK backend",
 };
 
 export default function RootLayout({

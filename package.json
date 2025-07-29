@@ -16,9 +16,7 @@
     "@monaco-editor/react": "^4.7.0",
     "@tailwindcss/typography": "^0.5.16",
     "ai": "^4.3.19",
-    "grapesjs-blocks-basic": "^1.0.2",
-    "grapesjs-plugin-forms": "^2.0.6",
-    "grapesjs-preset-webpage": "^1.0.3",
+
     "lucide-react": "^0.532.0",
     "monaco-editor": "^0.52.2",
     "next": "15.4.4",

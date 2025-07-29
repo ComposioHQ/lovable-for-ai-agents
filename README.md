@@ -4,7 +4,7 @@ A platform to build custom AI agents with visual frontend builders and powerful 
 
 ## Features
 
-🎨 **Visual Frontend Builder** - Use GrapesJS to create beautiful agent interfaces  
+🎨 **Dynamic Frontend Generation** - Automatically generate beautiful agent interfaces  
 🤖 **AI Agent Generation** - Automatically generate backend code using Vercel AI SDK  
 🛠️ **Tool Integration** - Built-in Composio integration for agent capabilities  
 ⚡ **Live Preview** - Test your agents in real-time  
@@ -52,7 +52,7 @@ The platform uses AI to generate:
 - **Backend**: Next.js API route with Vercel AI SDK and Composio integration
 
 ### 3. Customize Interface
-Use the built-in GrapesJS visual editor to:
+The system automatically generates:
 - Modify the generated frontend
 - Add custom styling and components
 - Adjust layout and responsiveness
@@ -66,7 +66,7 @@ Use the built-in GrapesJS visual editor to:
 
 ```
 ┌─ Frontend (Next.js + React + TailwindCSS)
-│  ├─ Visual Builder (GrapesJS)
+│  ├─ Dynamic Frontend Generation
 │  ├─ Code Preview (Monaco Editor)
 │  └─ Agent Testing Interface
 │
@@ -192,7 +192,7 @@ Make a content creator agent that:
 - **Backend**: Next.js API Routes, TypeScript
 - **AI**: Vercel AI SDK, OpenAI GPT-4
 - **Tools**: Composio Integration Platform
-- **Editor**: GrapesJS Visual Builder
+- **Editor**: Dynamic Frontend Generation
 - **Icons**: Lucide React
 
 ## Contributing
