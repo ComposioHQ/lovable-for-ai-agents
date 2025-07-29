@@ -94,7 +94,7 @@ Return only a comma-separated list of 3-5 most relevant tool names that are from
 
     // Step 3: Generate system prompt for the agent
     const systemPromptResult = await generateText({
-      model: openai('gpt-4o-mini'),
+      model: openai('gpt-4.1'),
       prompt: `Create a focused system prompt for an AI agent with this idea: "${agentIdea}"
 
 The agent will have access to these Composio tools: ${discoveredTools.join(', ')}
@@ -147,7 +147,7 @@ Generate only the complete HTML code with inline CSS and JavaScript. No explanat
     `;
 
     const frontendResult = await generateText({
-      model: openai('gpt-4o-mini'),
+      model: openai('gpt-4.1'),
       prompt: frontendPrompt,
       maxTokens: 4000,
     });
