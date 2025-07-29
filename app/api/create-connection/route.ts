@@ -60,10 +60,7 @@ export async function POST(req: NextRequest) {
         // Step 3: Initiate OAuth connection using SDK
         const connRequest = await composio.connectedAccounts.initiate(
           userId, 
-          authConfig.id,
-          {
-            callbackUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/connections/callback`
-          }
+          authConfig.id
         );
 
         console.log('Connection request:', connRequest);
