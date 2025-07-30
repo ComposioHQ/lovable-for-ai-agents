@@ -47,15 +47,29 @@ export async function POST(req: NextRequest) {
           id: config.id, 
           name: config.name, 
           toolkit: config.toolkit,
-          type: config.type 
+          type: config.type,
+          authScheme: config.authScheme,
+          allKeys: Object.keys(config)
         })));
         
         // Look for existing auth config for this toolkit and auth type
         const existingConfig = existingConfigs.items.find((config: any) => {
-          const toolkitMatch = config.toolkit?.toLowerCase() === toolkitSlug.toLowerCase();
-          const typeMatch = isComposioManaged ? 
-            config.type === "use_composio_managed_auth" : 
-            config.type === "use_custom_auth";
+          const toolkitMatch = config.toolkit?.slug?.toLowerCase() === toolkitSlug.toLowerCase();
+          
+          // More lenient type matching since types are showing as undefined
+          let typeMatch = false;
+          if (isComposioManaged) {
+            // For Composio managed, look for configs that might be managed
+            // Check if it's a managed auth by looking at the name or other indicators
+            typeMatch = config.type === "use_composio_managed_auth" || 
+                       config.name?.includes('OAuth Config') ||
+                       config.name?.includes('Managed');
+          } else {
+            typeMatch = config.type === "use_custom_auth" ||
+                       config.name?.includes('Custom');
+          }
+          
+          console.log(`Checking config ${config.id}: toolkit match=${toolkitMatch}, type match=${typeMatch}, name="${config.name}"`);
           return toolkitMatch && typeMatch;
         });
         

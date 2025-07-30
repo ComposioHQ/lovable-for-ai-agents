@@ -132,7 +132,6 @@ export async function POST(req: NextRequest) {
       throw toolError;
     }
 
-    console.log('✅ [DEBUG] Generated agent response:', text);
     
     return NextResponse.json({ 
       response: text,
