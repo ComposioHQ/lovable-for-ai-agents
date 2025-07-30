@@ -41,6 +41,32 @@ export async function POST(req: NextRequest) {
       });
       
       try {
+        // First, list existing auth configs to see if one already exists
+        const existingConfigs = await composioInstance.authConfigs.list();
+        console.log('Existing auth configs:', existingConfigs.items.map((config: any) => ({ 
+          id: config.id, 
+          name: config.name, 
+          toolkit: config.toolkit,
+          type: config.type 
+        })));
+        
+        // Look for existing auth config for this toolkit and auth type
+        const existingConfig = existingConfigs.items.find((config: any) => {
+          const toolkitMatch = config.toolkit?.toLowerCase() === toolkitSlug.toLowerCase();
+          const typeMatch = isComposioManaged ? 
+            config.type === "use_composio_managed_auth" : 
+            config.type === "use_custom_auth";
+          return toolkitMatch && typeMatch;
+        });
+        
+        if (existingConfig) {
+          console.log(`Found existing auth config for ${toolkitSlug}:`, existingConfig.id);
+          return existingConfig.id;
+        }
+        
+        // No existing config found, create a new one
+        console.log(`Creating new auth config for ${toolkitSlug}, managed: ${isComposioManaged}`);
+        
         if (isComposioManaged) {
           // For Composio-managed auth, create using managed auth
           const authConfig = await composioInstance.authConfigs.create(toolkitSlug.toUpperCase(), {
@@ -62,10 +88,8 @@ export async function POST(req: NextRequest) {
           return authConfig.id;
         }
       } catch (error: any) {
-        console.error('Error creating auth config:', error);
-        // If auth config already exists, try to find existing one
-        // This is a fallback - in production you'd store auth config IDs
-        throw new Error(`Failed to create auth config: ${error.message}`);
+        console.error('Error in getOrCreateAuthConfig:', error);
+        throw new Error(`Failed to get or create auth config: ${error.message}`);
       }
     };
     
@@ -85,18 +109,15 @@ export async function POST(req: NextRequest) {
       });
 
       try {
-        // Step 2: Create auth config using Composio managed auth (recommended approach)
-        const authConfig = await composio.authConfigs.create(toolkitSlug.toUpperCase(), {
-          name: `${toolkitData.name} OAuth Config`,
-          type: "use_composio_managed_auth", // This is the key difference!
-        });
-
-        console.log('Created auth config:', authConfig);
+        // Step 2: Get or create auth config using the helper function
+        const authConfigId = await getOrCreateAuthConfig(toolkitSlug, authType, true);
+        
+        console.log(`Using auth config ID for OAuth2 ${toolkitSlug}:`, authConfigId);
 
         // Step 3: Initiate OAuth connection using SDK
         const connRequest = await composio.connectedAccounts.initiate(
           userId, 
-          authConfig.id
+          authConfigId
         );
 
         console.log('Connection request:', connRequest);
@@ -106,7 +127,7 @@ export async function POST(req: NextRequest) {
           authType: 'oauth2',
           redirectUrl: connRequest.redirectUrl,
           connectionId: connRequest.id,
-          authConfigId: authConfig.id,
+          authConfigId: authConfigId,
           message: 'OAuth2 connection initiated. Please complete authorization.'
         });
 
@@ -229,13 +250,20 @@ export async function POST(req: NextRequest) {
           );
         }
 
-        // Get or create auth config for non-Composio managed API key
-        const authConfigId = await getOrCreateAuthConfig(toolkitSlug, authType, false);
+        // For custom auth, create with appropriate auth scheme
+        const authScheme = authType.toLowerCase() === 'bearer_token' ? 'BEARER_TOKEN' : 'API_KEY';
         
-        console.log(`Using auth config ID for custom ${toolkitSlug}:`, authConfigId);
+        const authConfig = await composio.authConfigs.create(toolkitSlug.toUpperCase(), {
+          name: `${toolkitData.name} Custom Config`,
+          type: "use_custom_auth",
+          authScheme: authScheme,
+          credentials: {} // Empty initially, filled during connection
+        });
+        
+        console.log(`Created custom auth config for ${toolkitSlug}:`, authConfig.id);
         
         // Use AuthScheme.APIKey() for proper API key connection
-        const connRequest = await composio.connectedAccounts.initiate(userId, authConfigId, {
+        const connRequest = await composio.connectedAccounts.initiate(userId, authConfig.id, {
           config: AuthScheme.APIKey({
             api_key: credentials.apiKey
           })
@@ -247,7 +275,7 @@ export async function POST(req: NextRequest) {
           success: true,
           authType: authType,
           connectionId: connRequest.id,
-          authConfigId: authConfigId,
+          authConfigId: authConfig.id,
           message: `${toolkitSlug} connected successfully with custom ${authType}`
         });
 
