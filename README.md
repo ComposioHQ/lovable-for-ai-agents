@@ -15,15 +15,15 @@ A platform to build custom AI agents with visual frontend builders and powerful 
 
 1. **Clone and Install**
    ```bash
-   git clone <your-repo>
-   cd lovable-agents
+   git clone ComposioHQ/lovable-for-ai-agents
+   cd lovable-for-ai-agents
    npm install
    ```
 
 2. **Environment Setup**
    ```bash
    # Copy environment template
-   cp .env.example .env.local
+   cp .env.example .env
    
    # Add your API keys
    OPENAI_API_KEY=your_openai_key_here

@@ -4,6 +4,9 @@ import { openai } from "@ai-sdk/openai";
 import { Composio } from '@composio/core';
 import { VercelProvider } from "@composio/vercel";
 
+const COMPOSIO_API_KEY = process.env.COMPOSIO_API_KEY;
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+
 export async function POST(req: NextRequest) {
   try {
     const { agentIdea } = await req.json();
@@ -13,13 +16,12 @@ export async function POST(req: NextRequest) {
     }
 
     // Initialize Composio for tool discovery
-    const composioApiKey = process.env.COMPOSIO_API_KEY;
-    if (!composioApiKey) {
+    if (!COMPOSIO_API_KEY) {
       return NextResponse.json({ error: 'Composio API key not configured' }, { status: 500 });
     }
     
     const composio = new Composio({
-      apiKey: composioApiKey,
+      apiKey: COMPOSIO_API_KEY,
       provider: new VercelProvider()
     });
 
@@ -44,9 +46,11 @@ Generate only the use case description (2-4 words), no explanations.
     `;
 
     // Check for OpenAI API key
-    const openaiApiKey = process.env.OPENAI_API_KEY;
-    if (!openaiApiKey) {
-      return NextResponse.json({ error: 'OpenAI API key not configured' }, { status: 500 });
+    if (!OPENAI_API_KEY) {
+      return NextResponse.json(
+        { error: "OpenAI API key not configured" },
+        { status: 500 }
+      );
     }
 
     const useCaseResult = await generateText({
