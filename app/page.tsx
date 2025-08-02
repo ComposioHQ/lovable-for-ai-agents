@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 
-const COMPOSIO_API_KEY = process.env.COMPOSIO_API_KEY || '';
+const COMPOSIO_API_KEY = process.env.NEXT_PUBLIC_COMPOSIO_API_KEY || '';
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || '';
 
 interface GeneratedCode {
@@ -71,6 +71,8 @@ export default function Home() {
     null
   );
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isExecuting, setIsExecuting] = useState(false);
+  const [iframeKey, setIframeKey] = useState(0);
   const [toolkitInfos, setToolkitInfos] = useState<Record<string, any>>({});
   const [connectionStatuses, setConnectionStatuses] = useState<
     Record<string, ToolkitConnectionStatus>
@@ -125,11 +127,11 @@ export default function Home() {
           if (generatedCode) {
             // Ensure the frontend code is properly formatted and placeholders are replaced
             const cleanFrontend = generatedCode.frontend
-              .replace(/```html\s*/g, "")
-              .replace(/```\s*$/g, "")
-              .replace(/__LLM_API_KEY__/g, OPENAI_API_KEY)
-              .replace(/__COMPOSIO_API_KEY__/g, COMPOSIO_API_KEY)
-              .replace(/__USER_ID__/g, userId);
+              .replace(/```html\s*/g, '')
+              .replace(/```\s*$/g, '')
+              .replace(/__LLM_API_KEY__/g, `"${process.env.NEXT_PUBLIC_OPENAI_API_KEY || ''}"`)
+              .replace(/__COMPOSIO_API_KEY__/g, `"${process.env.NEXT_PUBLIC_COMPOSIO_API_KEY || ''}"`)
+              .replace(/__USER_ID__/g, `"${userId}"`);
 
             const newBlob = new Blob([cleanFrontend], { type: "text/html" });
             const newUrl = URL.createObjectURL(newBlob);
@@ -248,11 +250,11 @@ The agent is now ready for testing on the right side!`,
 
           // Ensure the frontend code is properly formatted and placeholders are replaced
           const cleanFrontend = code.frontend
-            .replace(/```html\s*/g, "")
-            .replace(/```\s*$/g, "")
-            .replace(/__LLM_API_KEY__/g, OPENAI_API_KEY)
-            .replace(/__COMPOSIO_API_KEY__/g, COMPOSIO_API_KEY)
-            .replace(/__USER_ID__/g, userId);
+            .replace(/```html\s*/g, '')
+            .replace(/```\s*$/g, '')
+            .replace(/__LLM_API_KEY__/g, `"${process.env.NEXT_PUBLIC_OPENAI_API_KEY || ''}"`)
+            .replace(/__COMPOSIO_API_KEY__/g, `"${process.env.NEXT_PUBLIC_COMPOSIO_API_KEY || ''}"`)
+            .replace(/__USER_ID__/g, `"${userId}"`);
 
           const blob = new Blob([cleanFrontend], { type: "text/html" });
           const url = URL.createObjectURL(blob);
@@ -291,7 +293,7 @@ The agent is now ready for testing on the right side!`,
 
     addMessage({
       type: "system",
-      content: "Checking required toolkit connections..." + COMPOSIO_API_KEY,
+      content: "Checking required toolkit connections...",
     });
 
     try {
@@ -300,7 +302,7 @@ The agent is now ready for testing on the right side!`,
         addMessage({
           type: "assistant",
           content:
-            "Composio API key not configured. Please set COMPOSIO_API_KEY in your environment.",
+                          "Composio API key not configured. Please set NEXT_PUBLIC_COMPOSIO_API_KEY in your environment.",
         });
         setIsCheckingConnections(false);
         return;
@@ -402,9 +404,9 @@ Connect these services to enable your agent's full functionality:`,
     const toolkit = toolkitInfos[toolkitSlug];
 
     try {
-      if (!COMPOSIO_API_KEY) {
+      if (!process.env.NEXT_PUBLIC_COMPOSIO_API_KEY) {
         alert(
-          "Composio API key not configured. Please set COMPOSIO_API_KEY in your environment."
+                      "Composio API key not configured. Please set NEXT_PUBLIC_COMPOSIO_API_KEY in your environment."
         );
         return;
       }
@@ -482,7 +484,7 @@ Connect these services to enable your agent's full functionality:`,
     // Check if Composio API key is configured
     if (!COMPOSIO_API_KEY) {
       alert(
-        "Composio API key not configured. Please set COMPOSIO_API_KEY in your environment."
+                    "Composio API key not configured. Please set NEXT_PUBLIC_COMPOSIO_API_KEY in your environment."
       );
       return;
     }
@@ -499,7 +501,7 @@ Connect these services to enable your agent's full functionality:`,
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            COMPOSIO_API_KEY,
+            composioApiKey: COMPOSIO_API_KEY,
             toolkitSlug,
             authType: "oauth2",
             userId,
@@ -522,7 +524,13 @@ Connect these services to enable your agent's full functionality:`,
             );
           }
         } else {
-          throw new Error("Failed to initiate OAuth connection");
+          const errorData = await response.json().catch(() => ({}));
+          console.error('OAuth connection failed:', {
+            status: response.status,
+            statusText: response.statusText,
+            error: errorData
+          });
+          throw new Error(`Failed to initiate OAuth connection: ${errorData.error || response.statusText}`);
         }
       } else if (status.isComposioManaged && status.isApiKey) {
         // Composio-managed API key - show input form

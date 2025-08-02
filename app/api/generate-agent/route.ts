@@ -4,8 +4,8 @@ import { openai } from "@ai-sdk/openai";
 import { Composio } from '@composio/core';
 import { VercelProvider } from "@composio/vercel";
 
-const COMPOSIO_API_KEY = process.env.COMPOSIO_API_KEY;
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+const composioApiKey = process.env.NEXT_PUBLIC_COMPOSIO_API_KEY;
 
 export async function POST(req: NextRequest) {
   try {
@@ -16,12 +16,12 @@ export async function POST(req: NextRequest) {
     }
 
     // Initialize Composio for tool discovery
-    if (!COMPOSIO_API_KEY) {
-      return NextResponse.json({ error: 'Composio API key not configured' }, { status: 500 });
+    if (!composioApiKey) {
+      return NextResponse.json({ error: 'Composio API key not configured. Please set NEXT_PUBLIC_COMPOSIO_API_KEY in your environment.' }, { status: 500 });
     }
     
     const composio = new Composio({
-      apiKey: COMPOSIO_API_KEY,
+      apiKey: composioApiKey,
       provider: new VercelProvider()
     });
 
@@ -69,7 +69,6 @@ Generate only the use case description (2-4 words), no explanations.
       const searchTools = await composio.tools.get('default', {
         tools: ['COMPOSIO_SEARCH_TOOLS']
       });
-
       // Use AI to determine likely tools based on use case
       const toolSelectionPrompt = `
 Based on this use case: "${useCase}"
@@ -78,7 +77,6 @@ Use only the search tools to find the most relevant tools for the use case and r
 
 Return only a comma-separated list of 3-5 most relevant tool names that are from the search tool outputs. No explanations.
       `;
-
       const toolSelectionResult = await generateText({
         model: openai('gpt-4.1'),
         prompt: toolSelectionPrompt,
@@ -92,8 +90,9 @@ Return only a comma-separated list of 3-5 most relevant tool names that are from
         .filter(tool => tool.length > 0);
 
       discoveredTools = [...new Set([...suggestedTools])];
-    } catch (error) {
-      console.warn('Tool discovery failed, using defaults:', error);
+      
+    } catch (error: any) {
+      console.warn('Tool discovery failed, using defaults:', error?.message || error);
     }
 
     // Step 3: Generate system prompt for the agent
@@ -124,7 +123,7 @@ Create a complete, single-file HTML page for a modern AI chat interface based on
 **Non-Negotiable Requirements:**
 
 1.  **HTML Structure:**
-    *   A main container with a class of \`chat-container\`.
+    *   The \`<body>\` must have \`display: flex; flex-direction: column; height: 100vh;\` to create a full-height container.
     *   A header \`<div class="chat-header">\` displaying the agent's name: "${agentIdea}".
     *   A message container \`<div class="chat-messages" id="chatMessages">\`.
     *   An initial message from the assistant welcoming the user.
@@ -132,18 +131,23 @@ Create a complete, single-file HTML page for a modern AI chat interface based on
     *   The form must contain a \`<textarea id="chatInput">\` and a send \`<button id="sendButton">\`.
 
 2.  **Styling (Inline CSS):**
-    *   Create a modern, clean, responsive chat interface. Use a dark theme.
-    *   The styling must be fully contained within a \`<style>\` tag in the \`<head>\`. Do not use external stylesheets.
-    *   Include styles for user messages, agent messages, loading indicators, and error messages.
-    *   The textarea should auto-resize based on content.
+    *   Create a modern, clean, responsive chat interface. Use a dark theme with a professional color palette.
+    *   The styling **must** be fully contained within a \`<style>\` tag in the \`<head>\`. Do not use external stylesheets.
+    *   **Layout CSS is critical:**
+        *   \`body { display: flex; flex-direction: column; height: 100vh; margin: 0; }\`
+        *   \`.chat-messages { flex-grow: 1; overflow-y: auto; padding: 20px; }\`
+        *   \`.chat-input-container { display: flex; padding: 10px; border-top: 1px solid #333; }\`
+    *   Include styles for user messages (e.g., blue background, right-aligned) and agent messages (e.g., gray background, left-aligned).
+    *   Style the loading indicator and error messages to be clear and visually distinct.
+    *   The textarea should be responsive (\`width: 100%\`) and auto-resize based on content.
 
 3.  **JavaScript Logic (Inline Script):**
     *   All JavaScript must be within a single \`<script>\` tag at the end of the \`<body>\`.
     *   **Crucially, use these exact placeholders for API keys and user ID, as they will be replaced by the server:**
         \`\`\`javascript
-        const LLM_API_KEY = "__LLM_API_KEY__";
-        const COMPOSIO_API_KEY = "__COMPOSIO_API_KEY__";
-        const USER_ID = "__USER_ID__";
+        const LLM_API_KEY = __LLM_API_KEY__;
+        const COMPOSIO_API_KEY = __COMPOSIO_API_KEY__;
+        const USER_ID = __USER_ID__;
         \`\`\`
     *   The script must get the following data, which is already embedded in this prompt:
         *   \`const DISCOVERED_TOOLS = ${JSON.stringify(discoveredTools)};\`
@@ -273,4 +277,4 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     );
   }
-} 
+}

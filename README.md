@@ -27,7 +27,7 @@ A platform to build custom AI agents with visual frontend builders and powerful 
    
    # Add your API keys
    OPENAI_API_KEY=your_openai_key_here
-   COMPOSIO_API_KEY=your_composio_key_here
+   NEXT_PUBLIC_COMPOSIO_API_KEY=your_composio_key_here
    ```
 
 3. **Run Development Server**
@@ -153,7 +153,7 @@ vercel --prod
 ### Environment Variables for Production
 ```
 OPENAI_API_KEY=your_production_openai_key
-COMPOSIO_API_KEY=your_production_composio_key
+NEXT_PUBLIC_COMPOSIO_API_KEY=your_production_composio_key
 NEXT_PUBLIC_APP_URL=https://your-domain.com
 ```
 
