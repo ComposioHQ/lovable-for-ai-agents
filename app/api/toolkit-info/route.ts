@@ -1,44 +1,59 @@
 import { NextRequest, NextResponse } from "next/server";
 
-export async function GET(req: NextRequest) {
+export async function POST(req: NextRequest) {
   try {
-    const { searchParams } = new URL(req.url);
-    const toolkitSlug = searchParams.get('slug');
-    const composioApiKey = searchParams.get('composioApiKey');
+    const { slug } = await req.json();
+    const composioApiKey = process.env.COMPOSIO_API_KEY;
 
-    if (!toolkitSlug || !composioApiKey) {
-      return NextResponse.json({ error: 'Missing required parameters' }, { status: 400 });
+    if (!slug || !composioApiKey) {
+      return NextResponse.json(
+        {
+          error: !slug
+            ? "Missing required parameter: slug"
+            : "Composio API key not configured on the server",
+        },
+        { status: 400 }
+      );
     }
 
     // Get toolkit information from Composio API
-    const response = await fetch(`https://backend.composio.dev/api/v3/toolkits/${toolkitSlug}`, {
-      method: 'GET',
-      headers: {
-        'x-api-key': composioApiKey,
-        'Content-Type': 'application/json',
-      },
-    });
+    const response = await fetch(
+      `https://backend.composio.dev/api/v3/toolkits/${encodeURIComponent(slug)}`,
+      {
+        method: "GET",
+        headers: {
+          "x-api-key": composioApiKey,
+          "Content-Type": "application/json",
+        },
+      }
+    );
 
     if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Composio API error: ${response.status} - ${errorText}`);
+      // Log limited details server-side only
+      console.error("Composio API error", { status: response.status });
+      return NextResponse.json(
+        {
+          error: "Failed to fetch toolkit information",
+          success: false,
+        },
+        { status: 502 }
+      );
     }
 
     const toolkitData = await response.json();
 
     return NextResponse.json({
       success: true,
-      toolkit: toolkitData
+      toolkit: toolkitData,
     });
-
   } catch (error) {
-    console.error('Error fetching toolkit info:', error);
+    console.error("Error fetching toolkit info:", error);
     return NextResponse.json(
-      { 
-        error: 'Failed to fetch toolkit information', 
-        details: error instanceof Error ? error.message : 'Unknown error',
-        success: false
-      }, 
+      {
+        error: "Failed to fetch toolkit information",
+        details: error instanceof Error ? error.message : "Unknown error",
+        success: false,
+      },
       { status: 500 }
     );
   }

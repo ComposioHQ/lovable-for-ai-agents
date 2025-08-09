@@ -18,8 +18,7 @@ import {
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 
-const COMPOSIO_API_KEY = process.env.NEXT_PUBLIC_COMPOSIO_API_KEY || '';
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY || '';
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY || "";
 
 interface GeneratedCode {
   frontend: string;
@@ -96,14 +95,12 @@ export default function Home() {
     const storedUserId = sessionStorage.getItem("composio_user_id");
     if (storedUserId) {
       setUserId(storedUserId);
-      console.log("🔍 [DEBUG] Using existing user ID:", storedUserId);
     } else {
       const newUserId = `user_${Date.now()}_${Math.random()
         .toString(36)
         .substr(2, 9)}`;
       sessionStorage.setItem("composio_user_id", newUserId);
       setUserId(newUserId);
-      console.log("🔍 [DEBUG] Generated new user ID:", newUserId);
     }
   }, []);
 
@@ -129,11 +126,17 @@ export default function Home() {
             const cleanFrontend = generatedCode.frontend
               .replace(/```html\s*/g, '')
               .replace(/```\s*$/g, '')
-              .replace(/__LLM_API_KEY__/g, `"${process.env.NEXT_PUBLIC_OPENAI_API_KEY || ''}"`)
-              .replace(/__COMPOSIO_API_KEY__/g, `"${process.env.NEXT_PUBLIC_COMPOSIO_API_KEY || ''}"`)
+              .replace(/__LLM_API_KEY__/g, `""`)
+              .replace(/__COMPOSIO_API_KEY__/g, `""`)
               .replace(/__USER_ID__/g, `"${userId}"`);
 
-            const newBlob = new Blob([cleanFrontend], { type: "text/html" });
+            // Inject in-memory storage shim to avoid SecurityError in sandboxed iframe
+            const storageShim = `<script>(function(){try{window.localStorage.getItem('__test');}catch(e){var m={};var s={getItem:(k)=>Object.prototype.hasOwnProperty.call(m,k)?m[k]:null,setItem:(k,v)=>{m[k]=String(v)},removeItem:(k)=>{delete m[k]},clear:()=>{m={}},key:(i)=>Object.keys(m)[i]||null,get length(){return Object.keys(m).length}};try{Object.defineProperty(window,'localStorage',{value:s,configurable:true});}catch(_){}try{Object.defineProperty(window,'sessionStorage',{value:{...s},configurable:true});}catch(_){} }})();</script>`;
+            const shimmedFrontend = /<head[^>]*>/i.test(cleanFrontend)
+              ? cleanFrontend.replace(/<head[^>]*>/i, (match: string) => `${match}\n${storageShim}`)
+              : `${storageShim}\n${cleanFrontend}`;
+
+            const newBlob = new Blob([shimmedFrontend], { type: "text/html" });
             const newUrl = URL.createObjectURL(newBlob);
             iframeRef.current.src = newUrl;
           }
@@ -252,18 +255,19 @@ The agent is now ready for testing on the right side!`,
           const cleanFrontend = code.frontend
             .replace(/```html\s*/g, '')
             .replace(/```\s*$/g, '')
-            .replace(/__LLM_API_KEY__/g, `"${process.env.NEXT_PUBLIC_OPENAI_API_KEY || ''}"`)
-            .replace(/__COMPOSIO_API_KEY__/g, `"${process.env.NEXT_PUBLIC_COMPOSIO_API_KEY || ''}"`)
+            .replace(/__LLM_API_KEY__/g, `""`)
+            .replace(/__COMPOSIO_API_KEY__/g, `""`)
             .replace(/__USER_ID__/g, `"${userId}"`);
 
-          const blob = new Blob([cleanFrontend], { type: "text/html" });
+          // Inject in-memory storage shim to avoid SecurityError in sandboxed iframe
+          const storageShim = `<script>(function(){try{window.localStorage.getItem('__test');}catch(e){var m={};var s={getItem:(k)=>Object.prototype.hasOwnProperty.call(m,k)?m[k]:null,setItem:(k,v)=>{m[k]=String(v)},removeItem:(k)=>{delete m[k]},clear:()=>{m={}},key:(i)=>Object.keys(m)[i]||null,get length(){return Object.keys(m).length}};try{Object.defineProperty(window,'localStorage',{value:s,configurable:true});}catch(_){}try{Object.defineProperty(window,'sessionStorage',{value:{...s},configurable:true});}catch(_){} }})();</script>`;
+          const shimmedFrontend = /<head[^>]*>/i.test(cleanFrontend)
+            ? cleanFrontend.replace(/<head[^>]*>/i, (match: string) => `${match}\n${storageShim}`)
+            : `${storageShim}\n${cleanFrontend}`;
+
+          const blob = new Blob([shimmedFrontend], { type: "text/html" });
           const url = URL.createObjectURL(blob);
 
-          console.log(
-            "🔍 [DEBUG] Iframe content length:",
-            cleanFrontend.length
-          );
-          console.log("🔍 [DEBUG] Generated blob URL:", url);
 
           // Set the iframe src directly
           if (iframeRef.current) {
@@ -298,23 +302,18 @@ The agent is now ready for testing on the right side!`,
 
     try {
       const uniqueToolkits = [...new Set(tools.map(extractToolkitName))];
-      if (!COMPOSIO_API_KEY) {
-        addMessage({
-          type: "assistant",
-          content:
-                          "Composio API key not configured. Please set NEXT_PUBLIC_COMPOSIO_API_KEY in your environment.",
-        });
-        setIsCheckingConnections(false);
-        return;
-      }
 
       const toolkitPromises = uniqueToolkits.map(async (toolkitSlug) => {
         try {
-          const response = await fetch(
-            `/api/toolkit-info?slug=${toolkitSlug}&composioApiKey=${encodeURIComponent(
-              COMPOSIO_API_KEY
-            )}`
-          );
+          const response = await fetch(`/api/toolkit-info`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              slug: toolkitSlug,
+            }),
+          });
           if (response.ok) {
             const data = await response.json();
             return { toolkitSlug, toolkit: data.toolkit };
@@ -404,13 +403,6 @@ Connect these services to enable your agent's full functionality:`,
     const toolkit = toolkitInfos[toolkitSlug];
 
     try {
-      if (!process.env.NEXT_PUBLIC_COMPOSIO_API_KEY) {
-        alert(
-                      "Composio API key not configured. Please set NEXT_PUBLIC_COMPOSIO_API_KEY in your environment."
-        );
-        return;
-      }
-
       addMessage({
         type: "system",
         content: `Connecting ${toolkit?.name || toolkitSlug}...`,
@@ -423,7 +415,6 @@ Connect these services to enable your agent's full functionality:`,
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          composioApiKey: COMPOSIO_API_KEY,
           toolkitSlug,
           authType,
           credentials,
@@ -443,7 +434,7 @@ Connect these services to enable your agent's full functionality:`,
 
           window.open(data.redirectUrl, "_blank");
           if (data.connectionId) {
-            waitForOAuthConnection(COMPOSIO_API_KEY, data.connectionId, toolkitSlug);
+            waitForOAuthConnection(data.connectionId, toolkitSlug);
           }
         } else {
           // For API key, connection should be immediate
@@ -481,14 +472,6 @@ Connect these services to enable your agent's full functionality:`,
     const status = connectionStatuses[toolkitSlug];
     if (!toolkit || !status) return;
 
-    // Check if Composio API key is configured
-    if (!COMPOSIO_API_KEY) {
-      alert(
-                    "Composio API key not configured. Please set NEXT_PUBLIC_COMPOSIO_API_KEY in your environment."
-      );
-      return;
-    }
-
     try {
       if (status.isComposioManaged && status.isOAuth2) {
         // Composio-managed OAuth2 - direct redirect
@@ -501,7 +484,6 @@ Connect these services to enable your agent's full functionality:`,
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            composioApiKey: COMPOSIO_API_KEY,
             toolkitSlug,
             authType: "oauth2",
             userId,
@@ -517,11 +499,24 @@ Connect these services to enable your agent's full functionality:`,
             }));
 
             window.open(data.redirectUrl, "_blank");
-            waitForOAuthConnection(
-              COMPOSIO_API_KEY,
-              data.connectionId,
-              toolkitSlug
-            );
+            waitForOAuthConnection(data.connectionId, toolkitSlug);
+          } else if (data.connectionId) {
+            // Existing connection was found, directly update the status
+            setConnectionStatuses((prev) => ({
+              ...prev,
+              [toolkitSlug]: {
+                ...prev[toolkitSlug],
+                connected: true,
+                status: "connected",
+                connectionId: data.connectionId,
+              },
+            }));
+            addMessage({
+              type: "system",
+              content: `🎉 ${
+                toolkit?.name || toolkitSlug
+              } is already connected! Your agent can now use this service.`,
+            });
           }
         } else {
           const errorData = await response.json().catch(() => ({}));
@@ -573,7 +568,6 @@ Connect these services to enable your agent's full functionality:`,
   };
 
   const waitForOAuthConnection = async (
-    composioApiKey: string,
     connectionId: string,
     toolkitSlug: string
   ) => {
@@ -582,7 +576,6 @@ Connect these services to enable your agent's full functionality:`,
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          composioApiKey,
           connectionId,
           timeout: 300000,
         }),
@@ -992,11 +985,13 @@ Connect these services to enable your agent's full functionality:`,
         <div className="flex-1 p-6 bg-gradient-to-br from-gray-900/20 to-gray-800/20 overflow-hidden">
           <div className="h-full flex flex-col">
             {/* HTML Preview - Direct iframe rendering */}
+            {/** Relax sandbox in development only to simplify local testing of third-party libs that require same-origin */}
             <iframe
               ref={iframeRef}
               className="flex-1 w-full bg-white shadow-2xl rounded-lg border border-gray-700/50"
               src="/api/preview?type=default"
               title="AI Agent Preview"
+              sandbox={process.env.NODE_ENV === 'development' ? "allow-scripts allow-forms allow-same-origin" : "allow-scripts allow-forms"}
             />
 
             {!generatedCode && (

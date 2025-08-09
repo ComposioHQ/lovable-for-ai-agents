@@ -25,9 +25,9 @@ A platform to build custom AI agents with visual frontend builders and powerful 
    # Copy environment template
    cp .env.example .env
    
-   # Add your API keys
+   # Add your API keys (server-side only; do not expose secrets to the browser)
    OPENAI_API_KEY=your_openai_key_here
-   NEXT_PUBLIC_COMPOSIO_API_KEY=your_composio_key_here
+   COMPOSIO_API_KEY=your_composio_key_here
    ```
 
 3. **Run Development Server**
@@ -95,8 +95,6 @@ Generates frontend and backend code for AI agents.
 Executes a generated AI agent with streaming response.
 ```json
 {
-  "llmApiKey": "your_llm_key",
-  "composioApiKey": "your_composio_key", 
   "prompt": "User prompt",
   "agentCode": "Generated backend code"
 }
@@ -107,8 +105,7 @@ Executes a generated AI agent with streaming response.
 Each generated agent includes:
 
 **Frontend Features:**
-- LLM API Key input field
-- Composio API Key input field  
+- No API key fields in the browser
 - Prompt textarea
 - Run Agent button
 - Response display area
@@ -153,8 +150,8 @@ vercel --prod
 ### Environment Variables for Production
 ```
 OPENAI_API_KEY=your_production_openai_key
-NEXT_PUBLIC_COMPOSIO_API_KEY=your_production_composio_key
-NEXT_PUBLIC_APP_URL=https://your-domain.com
+COMPOSIO_API_KEY=your_production_composio_key
+APP_URL=https://your-domain.com
 ```
 
 ## Examples

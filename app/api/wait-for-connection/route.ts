@@ -4,10 +4,22 @@ import { VercelProvider } from "@composio/vercel";
 
 export async function POST(req: NextRequest) {
   try {
-    const { composioApiKey, connectionId, userId = "default", timeout = 300000 } = await req.json();
+    const {
+      connectionId,
+      userId = "default",
+      timeout = 300000,
+    } = await req.json();
+    const composioApiKey = process.env.COMPOSIO_API_KEY;
 
     if (!composioApiKey || !connectionId) {
-      return NextResponse.json({ error: 'Missing required fields: composioApiKey, connectionId' }, { status: 400 });
+      return NextResponse.json(
+        {
+          error: composioApiKey
+            ? "Missing required fields: connectionId"
+            : "Composio API key not configured on the server",
+        },
+        { status: 400 }
+      );
     }
 
     // Initialize Composio SDK

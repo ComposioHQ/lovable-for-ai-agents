@@ -5,7 +5,7 @@ import { Composio } from '@composio/core';
 import { VercelProvider } from "@composio/vercel";
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-const composioApiKey = process.env.NEXT_PUBLIC_COMPOSIO_API_KEY;
+const composioApiKey = process.env.COMPOSIO_API_KEY;
 
 export async function POST(req: NextRequest) {
   try {
@@ -17,7 +17,13 @@ export async function POST(req: NextRequest) {
 
     // Initialize Composio for tool discovery
     if (!composioApiKey) {
-      return NextResponse.json({ error: 'Composio API key not configured. Please set NEXT_PUBLIC_COMPOSIO_API_KEY in your environment.' }, { status: 500 });
+      return NextResponse.json(
+        {
+          error:
+            "Composio API key not configured. Please set COMPOSIO_API_KEY in your environment.",
+        },
+        { status: 500 }
+      );
     }
     
     const composio = new Composio({
@@ -143,10 +149,8 @@ Create a complete, single-file HTML page for a modern AI chat interface based on
 
 3.  **JavaScript Logic (Inline Script):**
     *   All JavaScript must be within a single \`<script>\` tag at the end of the \`<body>\`.
-    *   **Crucially, use these exact placeholders for API keys and user ID, as they will be replaced by the server:**
+    *   Define a constant for user ID only (API keys must NOT be exposed in the browser):
         \`\`\`javascript
-        const LLM_API_KEY = __LLM_API_KEY__;
-        const COMPOSIO_API_KEY = __COMPOSIO_API_KEY__;
         const USER_ID = __USER_ID__;
         \`\`\`
     *   The script must get the following data, which is already embedded in this prompt:
@@ -158,11 +162,9 @@ Create a complete, single-file HTML page for a modern AI chat interface based on
         3.  It must show a loading indicator while waiting for the response.
         4.  Inside the \`sendMessage\` function, it must define the base URL for API calls: \`const API_BASE_URL = window.location.origin;\`.
         5.  **It must send a POST request to \`\${API_BASE_URL}/api/execute-generated-agent\`**.
-        6.  The request body **MUST** be a JSON object with this exact structure:
+        6.  The request body **MUST** be a JSON object with this exact structure (do NOT include API keys):
             \`\`\`json
             {
-              "llmApiKey": LLM_API_KEY,
-              "composioApiKey": COMPOSIO_API_KEY,
               "prompt": "The user's message",
               "discoveredTools": DISCOVERED_TOOLS,
               "systemPrompt": SYSTEM_PROMPT,
@@ -191,9 +193,9 @@ import { VercelProvider } from "@composio/vercel";
 
 export async function POST(req: NextRequest) {
   try {
-    const { llmApiKey, composioApiKey, prompt, userId = "default" } = await req.json();
+    const { composioApiKey, prompt, userId = "default" } = await req.json();
 
-    if (!llmApiKey || !composioApiKey || !prompt) {
+    if (!composioApiKey || !prompt) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 

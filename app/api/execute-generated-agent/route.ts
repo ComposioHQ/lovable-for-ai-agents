@@ -4,16 +4,23 @@ import { openai } from "@ai-sdk/openai";
 import { Composio } from "@composio/core";
 import { VercelProvider } from "@composio/vercel";
 
-export async function POST(req: NextRequest) {
+// (Rate limiting removed per user request)
 
+export async function POST(req: NextRequest) {
   
   try {
     const body = await req.json();
 
-    const { llmApiKey, composioApiKey, prompt, discoveredTools, systemPrompt, userId = "default", authConfigs = {} } = body;
+    const {
+      prompt,
+      discoveredTools,
+      systemPrompt,
+      userId = "default",
+      authConfigs = {},
+    } = body;
+    const composioApiKey = process.env.COMPOSIO_API_KEY;
 
-    if (!llmApiKey || !composioApiKey || !prompt) {
-
+    if (!composioApiKey || !prompt) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
