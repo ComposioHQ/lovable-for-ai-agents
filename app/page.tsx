@@ -135,15 +135,17 @@ export default function Home() {
               'const API_BASE_URL = (document.referrer ? new URL(document.referrer).origin : "");'
             );
 
-            // Inject in-memory storage shim to avoid SecurityError in sandboxed iframe
+            // Inject shims: origin/base + in-memory storage
+            const originShim = `<script>(function(){try{var ref=document.referrer;var origin = ref ? new URL(ref).origin : (window.top && window.top.location ? window.top.location.origin : ''); if(origin){ try{var base=document.createElement('base'); base.href = origin + '/'; if(document.head){document.head.prepend(base);} }catch(_){} window.API_BASE_URL = origin; var of = window.fetch; if(of){ window.fetch = function(input, init){ try{ var u = typeof input==='string'? input : (input && input.url)||''; if(u && u.startsWith('/')){ return of(origin + u, init); } }catch(e){} return of(input, init); }; } } }catch(e){}})();</script>`;
             const storageShim = `<script>(function(){try{window.localStorage.getItem('__test');}catch(e){var m={};var s={getItem:(k)=>Object.prototype.hasOwnProperty.call(m,k)?m[k]:null,setItem:(k,v)=>{m[k]=String(v)},removeItem:(k)=>{delete m[k]},clear:()=>{m={}},key:(i)=>Object.keys(m)[i]||null,get length(){return Object.keys(m).length}};try{Object.defineProperty(window,'localStorage',{value:s,configurable:true});}catch(_){}try{Object.defineProperty(window,'sessionStorage',{value:{...s},configurable:true});}catch(_){} }})();</script>`;
+            const shims = originShim + storageShim;
             const shimmedFrontend = /<head[^>]*>/i.test(cleanFrontend)
-              ? cleanFrontend.replace(/<head[^>]*>/i, (match: string) => `${match}\n${storageShim}`)
-              : `${storageShim}\n${cleanFrontend}`;
+              ? cleanFrontend.replace(/<head[^>]*>/i, (match: string) => `${match}\n${shims}`)
+              : `${shims}\n${cleanFrontend}`;
 
-            const newBlob = new Blob([shimmedFrontend], { type: "text/html" });
-            const newUrl = URL.createObjectURL(newBlob);
-            iframeRef.current.src = newUrl;
+            // Render via srcdoc to avoid blob restrictions
+            iframeRef.current.removeAttribute('src');
+            (iframeRef.current as any).srcdoc = shimmedFrontend;
           }
         } else if (currentSrc.includes("/api/preview")) {
           // For API preview URLs, just reload
@@ -269,19 +271,18 @@ The agent is now ready for testing on the right side!`,
             'const API_BASE_URL = (document.referrer ? new URL(document.referrer).origin : "");'
           );
 
-          // Inject in-memory storage shim to avoid SecurityError in sandboxed iframe
+          // Inject shims: origin/base + in-memory storage
+          const originShim = `<script>(function(){try{var ref=document.referrer;var origin = ref ? new URL(ref).origin : (window.top && window.top.location ? window.top.location.origin : ''); if(origin){ try{var base=document.createElement('base'); base.href = origin + '/'; if(document.head){document.head.prepend(base);} }catch(_){} window.API_BASE_URL = origin; var of = window.fetch; if(of){ window.fetch = function(input, init){ try{ var u = typeof input==='string'? input : (input && input.url)||''; if(u && u.startsWith('/')){ return of(origin + u, init); } }catch(e){} return of(input, init); }; } } }catch(e){}})();</script>`;
           const storageShim = `<script>(function(){try{window.localStorage.getItem('__test');}catch(e){var m={};var s={getItem:(k)=>Object.prototype.hasOwnProperty.call(m,k)?m[k]:null,setItem:(k,v)=>{m[k]=String(v)},removeItem:(k)=>{delete m[k]},clear:()=>{m={}},key:(i)=>Object.keys(m)[i]||null,get length(){return Object.keys(m).length}};try{Object.defineProperty(window,'localStorage',{value:s,configurable:true});}catch(_){}try{Object.defineProperty(window,'sessionStorage',{value:{...s},configurable:true});}catch(_){} }})();</script>`;
+          const shims = originShim + storageShim;
           const shimmedFrontend = /<head[^>]*>/i.test(cleanFrontend)
-            ? cleanFrontend.replace(/<head[^>]*>/i, (match: string) => `${match}\n${storageShim}`)
-            : `${storageShim}\n${cleanFrontend}`;
+            ? cleanFrontend.replace(/<head[^>]*>/i, (match: string) => `${match}\n${shims}`)
+            : `${shims}\n${cleanFrontend}`;
 
-          const blob = new Blob([shimmedFrontend], { type: "text/html" });
-          const url = URL.createObjectURL(blob);
-
-
-          // Set the iframe src directly
+          // Render via srcdoc to avoid blob restrictions
           if (iframeRef.current) {
-            iframeRef.current.src = url;
+            iframeRef.current.removeAttribute('src');
+            (iframeRef.current as any).srcdoc = shimmedFrontend;
           }
 
           console.log("Updated iframe with AI-generated code");
