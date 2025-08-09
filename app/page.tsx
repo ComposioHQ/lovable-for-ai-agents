@@ -995,13 +995,13 @@ Connect these services to enable your agent's full functionality:`,
         <div className="flex-1 p-6 bg-gradient-to-br from-gray-900/20 to-gray-800/20 overflow-hidden">
           <div className="h-full flex flex-col">
             {/* HTML Preview - Direct iframe rendering */}
-            {/** Relax sandbox in development and vercel preview to simplify testing of third-party libs that require same-origin */}
+            {/** Allow same-origin so third-party libs that use localStorage work inside the preview */}
             <iframe
               ref={iframeRef}
               className="flex-1 w-full bg-white shadow-2xl rounded-lg border border-gray-700/50"
               src="/api/preview?type=default"
               title="AI Agent Preview"
-              sandbox={(process.env.NODE_ENV === 'development' || process.env.NEXT_PUBLIC_VERCEL_ENV === 'preview') ? "allow-scripts allow-forms allow-same-origin" : "allow-scripts allow-forms"}
+              sandbox="allow-scripts allow-forms allow-same-origin"
             />
 
             {!generatedCode && (
