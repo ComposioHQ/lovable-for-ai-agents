@@ -133,7 +133,11 @@ export async function POST(req: NextRequest) {
         systemPrompt: finalSystemPrompt,
         timestamp: new Date().toISOString()
       }
-    });
+    }, { headers: {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "POST, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type"
+    }});
 
   } catch (error) {
     console.error('❌ [DEBUG] Generated agent execution error:', error);
@@ -144,7 +148,22 @@ export async function POST(req: NextRequest) {
         details: error instanceof Error ? error.message : 'Unknown error',
         success: false
       }, 
-      { status: 500 }
+      { status: 500, headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type"
+      }}
     );
   }
 } 
+
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 204,
+    headers: {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "POST, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type",
+    }
+  });
+}

@@ -123,12 +123,17 @@ export default function Home() {
           // Regenerate the iframe content if we have generated code
           if (generatedCode) {
             // Ensure the frontend code is properly formatted and placeholders are replaced
-            const cleanFrontend = generatedCode.frontend
+            let cleanFrontend = generatedCode.frontend
               .replace(/```html\s*/g, '')
               .replace(/```\s*$/g, '')
               .replace(/__LLM_API_KEY__/g, `""`)
               .replace(/__COMPOSIO_API_KEY__/g, `""`)
               .replace(/__USER_ID__/g, `"${userId}"`);
+            // Ensure API_BASE_URL works from blob iframe by using document.referrer origin
+            cleanFrontend = cleanFrontend.replace(
+              /const\s+API_BASE_URL\s*=\s*window\.location\.origin\s*;/,
+              'const API_BASE_URL = (document.referrer ? new URL(document.referrer).origin : "");'
+            );
 
             // Inject in-memory storage shim to avoid SecurityError in sandboxed iframe
             const storageShim = `<script>(function(){try{window.localStorage.getItem('__test');}catch(e){var m={};var s={getItem:(k)=>Object.prototype.hasOwnProperty.call(m,k)?m[k]:null,setItem:(k,v)=>{m[k]=String(v)},removeItem:(k)=>{delete m[k]},clear:()=>{m={}},key:(i)=>Object.keys(m)[i]||null,get length(){return Object.keys(m).length}};try{Object.defineProperty(window,'localStorage',{value:s,configurable:true});}catch(_){}try{Object.defineProperty(window,'sessionStorage',{value:{...s},configurable:true});}catch(_){} }})();</script>`;
@@ -252,12 +257,17 @@ The agent is now ready for testing on the right side!`,
           }
 
           // Ensure the frontend code is properly formatted and placeholders are replaced
-          const cleanFrontend = code.frontend
+          let cleanFrontend = code.frontend
             .replace(/```html\s*/g, '')
             .replace(/```\s*$/g, '')
             .replace(/__LLM_API_KEY__/g, `""`)
             .replace(/__COMPOSIO_API_KEY__/g, `""`)
             .replace(/__USER_ID__/g, `"${userId}"`);
+          // Ensure API_BASE_URL works from blob iframe by using document.referrer origin
+          cleanFrontend = cleanFrontend.replace(
+            /const\s+API_BASE_URL\s*=\s*window\.location\.origin\s*;/,
+            'const API_BASE_URL = (document.referrer ? new URL(document.referrer).origin : "");'
+          );
 
           // Inject in-memory storage shim to avoid SecurityError in sandboxed iframe
           const storageShim = `<script>(function(){try{window.localStorage.getItem('__test');}catch(e){var m={};var s={getItem:(k)=>Object.prototype.hasOwnProperty.call(m,k)?m[k]:null,setItem:(k,v)=>{m[k]=String(v)},removeItem:(k)=>{delete m[k]},clear:()=>{m={}},key:(i)=>Object.keys(m)[i]||null,get length(){return Object.keys(m).length}};try{Object.defineProperty(window,'localStorage',{value:s,configurable:true});}catch(_){}try{Object.defineProperty(window,'sessionStorage',{value:{...s},configurable:true});}catch(_){} }})();</script>`;
@@ -985,13 +995,13 @@ Connect these services to enable your agent's full functionality:`,
         <div className="flex-1 p-6 bg-gradient-to-br from-gray-900/20 to-gray-800/20 overflow-hidden">
           <div className="h-full flex flex-col">
             {/* HTML Preview - Direct iframe rendering */}
-            {/** Relax sandbox in development only to simplify local testing of third-party libs that require same-origin */}
+            {/** Relax sandbox in development and vercel preview to simplify testing of third-party libs that require same-origin */}
             <iframe
               ref={iframeRef}
               className="flex-1 w-full bg-white shadow-2xl rounded-lg border border-gray-700/50"
               src="/api/preview?type=default"
               title="AI Agent Preview"
-              sandbox={process.env.NODE_ENV === 'development' ? "allow-scripts allow-forms allow-same-origin" : "allow-scripts allow-forms"}
+              sandbox={(process.env.NODE_ENV === 'development' || process.env.NEXT_PUBLIC_VERCEL_ENV === 'preview') ? "allow-scripts allow-forms allow-same-origin" : "allow-scripts allow-forms"}
             />
 
             {!generatedCode && (
