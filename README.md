@@ -200,6 +200,12 @@ Make a content creator agent that:
 4. Push to branch (`git push origin feature/amazing-feature`)
 5. Open Pull Request
 
+
+## References
+- [Composio Website](https://composio.dev/)
+- [Composio Docs](https://docs.composio.dev/docs/welcome)
+- [Composio SDK](https://github.com/composiohq/composio)
+
 ## License
 
 MIT License - see LICENSE file for details
